@@ -226,6 +226,102 @@ Extension：从java.ext.dirs系统属性所指定的目录中加载类库，它�
 
 System：又叫应用类加载器，其父类是Extension。它是应用最广泛的类加载器。它从环境变量classpath或者系统属性java.class.path所指定的目录中记载类，是用户自定义加载器的默认父加载器。
 
+说Java，必须说JVM. So 开始从总结JVM开始
+ 
+JVM类加载器
+ 　　每个Java开发者都知道Java字节码是执行在JRE(Java Runtime Environment Java运行时环境）上的。JRE中最重要的部分是Java虚拟机（JVM），JVM负责分析和执行Java字节码。了解JVM的类装载器之前，有一个概念我们是必须先知道的，就是java的沙箱，java的沙箱总体上经历了这么一个过程，从简单的java1.0的基础沙箱到java1.1的基于签名和认证的沙箱到后来基于基础沙箱+签名认证沙箱的java1.2的细粒度访问控制。    
+  <br />
+　　java的沙箱是你可以接受来自任何来源的代码，但沙箱限制了它进行可能破坏系统的任何动作，因为沙箱相对于系统的总的访问能力已经被限制，所以沙箱形象的说更像是一个监狱，把有破坏能力的代码困住了。<br />
+java沙箱的基本组件如下：<br />
+ * 1.类装载器结构(可以由用户定制)
+ * 2.class文件检验器
+ * 3.内置的java虚拟机
+ * 4.安全管理器(可以由用户定制)
+ * 5.java核心API
+
+
+  　　java的沙箱中类装载器和安全管理器可以由用户定制的,但是这样就加大了java代码安全的风险，所以java有一个叫访问控制体系结构，他包括安全策略规范和运行时安全策略实施，java有一个默认的安全策略管理器，用户可以用默认的安全策略管理器也可以在它之上进行扩展。
+
+ 　　java的类装载器从三方面对java的沙箱起作用：
+  * 1.它防止恶意的代码区干扰善意的代码
+      怎么理解这句话，不同的类装载器装入同样的类的时候会产生一个唯一的命名空间，java虚拟机维护着这些命名空间，同一类，一个命名空间只能装载一次，也只会装载一次，不同命名空间之间的类就如同各自有一个防护罩，感觉不到彼此的存在，如下图所示
+      ![image](http://img.my.csdn.net/uploads/201212/04/1354627251_8058.jpg)
+
+  * 2.它守护了被信任的类库边界
+      这里有两个需要理解的概念，一，双亲委托模式，二运行时包，java虚拟机通过这两个方面来界定类库的边界
+      什么是双亲委托模式先来看一个图和一段代码
+      ![image](http://img.my.csdn.net/uploads/201212/04/1354627750_5038.png)
+
+      ![image](http://images.cnitblog.com/blog/502866/201402/241535328298264.jpg)
+      这个图说明了类装载的过程，但是光这么看还是没有那么的清晰，我们只知道虚拟机启动的时候会启动bootStrapClassLoader，它负责加载java的核心API，然后bootStrapClassLoader会装载Launcher.java 之中的 ExtClassLoader(扩展类装载器)，并设定其 Parent 为 null ，代表其父加载器为 BootstrapLoaderExtClassLoader再有ExtClassLoader去装载ext下的拓展类库，然后 Bootstrap Loader 再要求加载 Launcher.java 之中的 AppClassLoader(用户自定义类装载器) ，并设定其 Parent 为之前产生的 ExtClassLoader 实体。这两个加载器都是以静态类的形式存在的，下面我们找到java.lang.ClassLoader的loadClass这个方法
+
+
+    protected synchronized Class<?> loadClass(String name, boolean resolve)  
+    throws ClassNotFoundException  
+    {  // First, check if the class has already been loaded  
+    Class c = findLoadedClass(name);  
+    if (c == null) {  
+        try {  
+        if (parent != null) {  
+            c = parent.loadClass(name, false);  
+        } else {  
+            c = findBootstrapClass0(name);  
+        }  
+        } catch (ClassNotFoundException e) {  
+            // If still not found, then invoke findClass in order  
+            // to find the class.  
+            c = findClass(name);  
+        }  
+    }  
+    if (resolve) {  
+        resolveClass(c);  
+    }  
+    return c;  
+    }
+
+
+这个方法告诉我们双亲委托模式的过程，当虚拟机去装载一个类的时候会先调用一个叫loadClass的方法，接着在这个方法里它会先调用findLoadedClass来判断要装载的类字节码是否已经转入了内存，如果没有的话，它会找到它的parent（这里的parent指装载自己的那个类加载器，一般我们的应用程序类的parent是AppClassLoader），然后调用parent的loadClass，重复自己loadClass的过程，如果parent没有装载过着这个类，就调用findBootstrapClass(这里是指bootStrap，启动装载器)来尝试装载这个类的字节码，如果bootStrap也没有办法装载这个类，则调用自己的findClass来尝试装载这个类，如果还是没办法装载则抛出异常。上面就是对双亲模式的简单描述，那么双亲委托描述有什么好处？
+
+你尝试一下自己写个java.lang.String的类，然后在ecplise跑一下，有没有发现抛出了异常，来看看这个异常
+java.lang.NoSuchMethodError: main 运行这个我们自己定义的类的java.lang.String的双亲委托模式加载过程如下AppClassLoader -> ExtClassLoader -> BootstrapLoader，由于BootstrapLoader只会加载核心API里的类，它匹配到核心API(JAVA_HOME\jre\lib)里的String类，所以它以为找到了这个类就直接去寻找核心API里的String类里的main函数，所以就抛出异常了，而我们自己写的那个String根本就没有机会被加载入内存，这就防止了我们自己写的类对java核心代码的破坏。                  
+
+什么是运行时包<br />
+要了解运行时包，我们先来设想一个问题，如果你自己定义了一个java.lang.A的类，能不能访问到java.lang.String类的friend成员？
+不行，为什么？这就是运行时包在起作用，java的语法规定，包访问权限的成员能够被同一个包下的类访问，那是为什么不能够访问呢，这同样是为了防止病毒代码的破坏，java虚拟机只允许由同一个类装载器装载到同一包中的类型互相访问，而由同一类装载器装载，属于同一个包的，多个类型的集合就是我们所指的运行时包了。
+
+
+* 3.将代码归入某类(保护域)，该类确定了代码能够执行那些操作
+除了1.屏蔽不同的命名空间，2.保护信任类库的边界外，类装载器的第三个重要的作用就是保护域，类装载器必须把代码放入到保护域中以限定这些代码运行时能够执行的操作的权限，这也如我上面讲的，像一个监狱一样，不让它在监狱意外的范围活动。
+
+自定义类加载器：
+http://blog.csdn.net/yfqnihao/article/details/8263195
+
+JVM你需要了解的
+
+JRE是由Java API和JVM组成的。JVM的主要作用是通过Class Loader来加载Java程序，并且按照Java API来执行加载的程序。
+
+JVM是通过软件的方式来模拟实现的机器（比如说计算机），它可以像物理机一样运行程序。设计虚拟机的初衷是让Java能够通过它来实现WORA(Write Once Run Anywher 一次编译，到处运行），尽管这个目标现在已经被大多数人忽略了。因此，JVM可以在不修改Java代码的情况下，在所有的硬件环境上运行Java字节码。
+
+　　什么是java虚拟机，什么是java的虚拟机实例？java的虚拟机相当于我们的一个java类，而java虚拟机实例，相当我们new一个java类，不过java虚拟机不是通过new这个关键字而是通过java.exe或者javaw.exe来启动一个虚拟机实例
+
+java的虚拟机种有两种线程，一种叫叫守护线程，一种叫非守护线程，main函数就是个非守护线程，虚拟机的gc就是一个守护线程。java的虚拟机中，只要有任何非守护线程还没有结束，java虚拟机的实例都不会退出，所以即使main函数这个非守护线程退出，但是由于在main函数中启动的匿名线程也是非守护线程，它还没有结束，所以jvm没办法退出(有没有想干坏事的感觉？？)。
+java虚拟机的生命周期，当一个java应用main函数启动时虚拟机也同时被启动，而只有当在虚拟机实例中的所有非守护进程都结束时，java虚拟机实例才结束生命。
+
+![image](http://img.my.csdn.net/uploads/201212/13/1355396896_8783.jpg)
+
+首先，当一个程序启动之前，它的class会被类装载器装入方法区(不好听，其实这个区我喜欢叫做Permanent区)，执行引擎读取方法区的字节码自适应解析，边解析就边运行（其中一种方式），然后pc寄存器指向了main函数所在位置，虚拟机开始为main函数在java栈中预留一个栈帧（每个方法都对应一个栈帧），然后开始跑main函数，main函数里的代码被执行引擎映射成本地操作系统里相应的实现，然后调用本地方法接口，本地方法运行的时候，操纵系统会为本地方法分配本地方法栈，用来储存一些临时变量，然后运行本地方法，调用操作系统APIi等等。
+
+整理自：http://blog.csdn.net/witsmakemen/article/details/28600127/
+       http://blog.csdn.net/yfqnihao/article/details/8289363   
+
+关于JVM内存管理的一些建议
+
+1、手动将生成的无用对象，中间对象置为null，加快内存回收。
+
+2、对象池技术如果生成的对象是可重用的对象，只是其中的属性不同时，可以考虑采用对象池来较少对象的生成。如果有空闲的对象就从对象池中取出使用，没有再生成新的对象，大大提高了对象的复用率。
+
+3、JVM调优通过配置JVM的参数来提高垃圾回收的速度，如果在没有出现内存泄露且上面两种办法都不能保证JVM内存回收时，可以考虑采用JVM调优的方式来解决，不过一定要经过实体机的长期测试，因为不同的参数可能引起不同的效果。如-Xnoclassgc参数等。
+
 ## 19.char 型变量中能不能存贮一个中文汉字，为什么？
 
 ### 答：
