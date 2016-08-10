@@ -99,7 +99,3 @@ nextFocusUp
 
 可以过滤恶意程序的一些操作：
 onFilterTouchEventForSecurity(MotionEvent) method to implement your own security policy.
-
-# .Android ViewGroup官方文档
-
-###
