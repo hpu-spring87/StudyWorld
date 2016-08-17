@@ -18,3 +18,16 @@
 var canvas = document.getElementById("canvas");
 var context = canvas.getContext("2d");
 ```
+
+**表格绘制**
+
+如下：
+
+| Tables        | Are           | Cool  |
+| ------------- |:-------------:| -----:|
+| col 3 is      | right-aligned | $1600 |
+| col 2 is      | centered      |   $12 |
+| zebra stripes | are neat      |    $1 |
+
+
+http://www.cnblogs.com/rossoneri/p/4446440.html
