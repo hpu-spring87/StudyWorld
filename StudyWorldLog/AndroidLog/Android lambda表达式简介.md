@@ -40,6 +40,7 @@
 4. (String s) -> System.out.println(s) 取一个字符串，在控制台中打印它的值，并什么也不返回
 5. x -> 2 * x 取一个数字并返回它的倍数
 6. c -> { int s = c.size(); c.clear(); return s; } 取一个集合，清空它，并返回清空前的大小
+7. .map(Double::parseDouble)  map里面值调用Double的parseDouble方法                        
 
 
 > Android 里面使用：
