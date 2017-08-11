@@ -11,7 +11,7 @@ CPU或者更通俗的说我们的计算机只能理解机器语言（二进制�
 
 翻译成机器码：
 
-1.Assemblers（汇编）
+1.Assemblers（汇编器）
 
 它将汇编代码直接转换为机器代码，因此它非常快
 
@@ -19,7 +19,7 @@ CPU或者更通俗的说我们的计算机只能理解机器语言（二进制�
 
 它将代码转换为汇编代码，然后使用汇编器将代码翻译成二进制代码。 使用这个编译很慢，但执行速度很快。编译器最大的问题是所产生的机器代码与平台有关。 换句话说，在一台机器上运行的代码可能不会在不同的机器上运行。
 
-3.Interpreters（翻译者）
+3.Interpreters（翻译器）
 
 它在执行代码时翻译代码。由于翻译发生在Runtime，执行速度很慢。
 
@@ -46,7 +46,7 @@ Dalvik是一个JIT（Just in time）基于编译的引擎。 使用Dalvik有缺�
 
 ### Ahead Of Time (AOT)
 
-ART配备了Ahead-of-Time编译器。在应用程序的安装阶段，它将DEX字节码静态地转换为机器代码并存储在设备的存储中。这是在应用程序安装在设备上时发生的一次性事件。不需要JIT编译，代码执行得更快。
+ART配备了Ahead-of-Time编译器。在应用程序的安装阶段，它会利用设备上的dex2oat工具将DEX字节码静态地转换为机器代码并存储在设备的存储中。这是在应用程序安装在设备上时发生的一次性事件。不需要JIT编译，代码执行得更快。
 
 由于ART直接（本地执行）运行应用程序机器代码，因此它不会像Dalvik上的just-in-time代码编译一样关心CPU的占用。由于较少的CPU使用量导致更少的电池耗尽。
 
@@ -83,6 +83,10 @@ Android使用虚拟机作为其运行时环境，以便运行Android特有的APK
 ### Conclusion
 
 ART是通过执行DEX文件，专门为Android设计的字节码格式，针对最小的内存占用进行了优化而编写的，用于在低内存设备上运行多个虚拟机。 它使UI感觉更流畅。 
+
+更多详细区别，参见官方文档：[https://android.jlelse.eu/closer-look-at-android-runtime-dvm-vs-art-1dc5240c3924](https://source.android.com/devices/tech/dalvik/)
+
+
 
 
 
